@@ -5,6 +5,7 @@ import bms.player.beatoraja.ir.IRChartData;
 import bms.player.beatoraja.ir.IRScoreData;
 
 public class ChickIRPlayData {
+    private String player;
     private IRChartData chartData;
     private IRScoreData scoreData;
     private String client;
@@ -13,6 +14,15 @@ public class ChickIRPlayData {
         this.chartData = chartData;
         this.scoreData = scoreData;
         this.client = MainController.getVersion();
+        this.player = scoreData.player;
+    }
+
+    public String getPlayer() {
+        return player;
+    }
+
+    public void setPlayer(String player) {
+        this.player = player;
     }
 
     public IRChartData getChartData() {

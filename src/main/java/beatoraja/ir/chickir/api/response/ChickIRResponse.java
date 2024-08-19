@@ -19,6 +19,12 @@ public class ChickIRResponse<T> implements IRResponse<T> {
         this.data = data;
     }
 
+    public ChickIRResponse(IRResponse<T> response) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
+    }
+
     @Override
     public boolean isSucceeded() {
         return this.success;
@@ -44,5 +50,14 @@ public class ChickIRResponse<T> implements IRResponse<T> {
 
     public void setData(T data) {
         this.data = data;
+    }
+
+    @Override
+    public String toString() {
+        return "ChickIRResponse{" +
+                "success=" + success +
+                ", message='" + message + '\'' +
+                ", data=" + data +
+                '}';
     }
 }

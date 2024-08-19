@@ -9,12 +9,15 @@ import okhttp3.*;
 
 import java.io.IOException;
 
-
+/**
+ * player恒定传unknow 怎么回事
+ */
 public class ChickIRConnection implements IRConnection {
 
     public static final String NAME = "ChickIR";
     public static final String HOME = "http://localhost:3000";
     public static final String VERSION = "0.0.1";
+    public String player_id;   // 我完全没有想到真的要在IR里写这个
 
     private final Gson gson;
     private final OkHttpClient client;
@@ -43,7 +46,20 @@ public class ChickIRConnection implements IRConnection {
                 .url(HOME + "/ir/api/login")
                 .post(body)
                 .build();
-        return sendRequest(request,IRPlayerData.class);
+        //return sendRequest(request,IRPlayerData.class);
+        try (Response response = client.newCall(request).execute()) {
+            if (response.isSuccessful()) {
+                JsonObject jsonResponse = gson.fromJson(response.body().string(), JsonObject.class);
+                JsonObject playerDataJson = jsonResponse.getAsJsonObject("data");
+                IRPlayerData playerData = gson.fromJson(playerDataJson, IRPlayerData.class);
+                return new ChickIRResponse<>(true, "请求成功", playerData);
+            } else {
+                return new ChickIRResponse<>(false, "请求失败: " + response.code(), null);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new ChickIRResponse<>(false, "内部错误: " + e.getMessage(), null);
+        }
     }
 
     @Override
@@ -68,7 +84,7 @@ public class ChickIRConnection implements IRConnection {
 
     @Override
     public IRResponse<IRScoreData[]> getPlayData(IRPlayerData irPlayerData, IRChartData irChartData) {
-        // 创建请求体，包含玩家数据和图表数据
+        // irPlayerData可能为 null，服务端处理就行
         JsonObject jsonObject = new JsonObject();
         jsonObject.add("playerData", gson.toJsonTree(irPlayerData));
         jsonObject.add("chartData", gson.toJsonTree(irChartData));
@@ -83,7 +99,6 @@ public class ChickIRConnection implements IRConnection {
 
     @Override
     public IRResponse<IRScoreData[]> getCoursePlayData(IRPlayerData irPlayerData, IRCourseData irCourseData) {
-        // 创建请求体，包含玩家数据和图表数据
         JsonObject jsonObject = new JsonObject();
         jsonObject.add("playerData", gson.toJsonTree(irPlayerData));
         jsonObject.add("courseData", gson.toJsonTree(irCourseData));
@@ -96,8 +111,15 @@ public class ChickIRConnection implements IRConnection {
         return sendRequest(request, IRScoreData[].class);
     }
 
+    /**
+     *
+     * @param irChartData 谱面数据
+     * @param irScoreData 分数数据
+     * @return 这里是要return送信结果的
+     */
     @Override
     public IRResponse<Object> sendPlayData(IRChartData irChartData, IRScoreData irScoreData) {
+        //System.out.print("传递过来的player：" + irScoreData.player); // 传过来的就是unknow
         ChickIRPlayData chickIRPlayData = new ChickIRPlayData(irChartData,irScoreData);
         String json = gson.toJson(chickIRPlayData);
         RequestBody body = RequestBody.create(json, MediaType.parse("application/json; charset=utf-8"));
@@ -108,10 +130,8 @@ public class ChickIRConnection implements IRConnection {
         // 获取响应
         try (Response response = client.newCall(request).execute()) {
             if (response.isSuccessful()) {
-                // 解析响应体为 IRPlayerData 对象
-                ChickIRPlayData playData = gson.fromJson(response.body().string(), ChickIRPlayData.class);
-                // 返回成功的响应
-                return new ChickIRResponse<>(true, "发送成绩成功", playData);
+                // 发现了只需要成功就可以了。
+                return new ChickIRResponse<>(true, "发送成绩成功", null);
             } else {
                 // 返回失败的响应
                 return new ChickIRResponse<>(false, "请求失败: " + response.code(), null);
@@ -123,6 +143,7 @@ public class ChickIRConnection implements IRConnection {
         }
     }
 
+    // 该怎么解决score的这个unknow呢
     @Override
     public IRResponse<Object> sendCoursePlayData(IRCourseData irCourseData, IRScoreData irScoreData) {
         ChickIRCoursePlayData chickIRCoursePlayData = new ChickIRCoursePlayData(irCourseData,irScoreData);
@@ -160,14 +181,21 @@ public class ChickIRConnection implements IRConnection {
         return "";
     }
 
-    @Override    public String getPlayerURL(IRPlayerData irPlayerData) {
+    @Override
+    public String getPlayerURL(IRPlayerData irPlayerData) {
         return "";
     }
 
     private <T> ChickIRResponse<T> sendRequest(Request request, Class<T> responseType) {
         try (Response response = client.newCall(request).execute()) {
             if (response.isSuccessful()) {
-                T responseData = gson.fromJson(response.body().string(), responseType);
+                JsonObject jsonResponse = gson.fromJson(response.body().string(), JsonObject.class);
+                T responseData = null;
+                // 从 JSON 对象中提取 data 字段
+                if (jsonResponse.has("data")) {
+                    responseData = gson.fromJson(jsonResponse.get("data"), responseType);
+                }
+                System.out.println("Response Data: " + responseData);
                 return new ChickIRResponse<>(true, "请求成功", responseData);
             } else {
                 return new ChickIRResponse<>(false, "请求失败: " + response.code(), null);
